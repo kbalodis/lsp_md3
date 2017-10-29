@@ -24,6 +24,7 @@ void listdir(char const* dirname)
 
    struct stat stbuf;
    char last_change[20];
+   char tmp[1024];
    char path_buf[1024];  
 
    if ( dirp == NULL )
@@ -37,13 +38,19 @@ void listdir(char const* dirname)
             stat(curr_ent->d_name, &stbuf);
             if (!S_ISLNK(stbuf.st_mode)) {
                 strftime(last_change, 20, "%Y-%m-%d %H:%M", localtime(&stbuf.st_mtime));
-                if (len(dirname) > 2)
-                    strcpy(path_buf, &(dirname[2]));
-                else
-                    strcpy(paht_buf, dirname)
-                strcat(path_buf, "/");
-                strcat(path_buf, curr_ent->d_name);
-                printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, path_buf);
+                if (strlen(dirname) > 2) {
+                    strcpy(tmp, dirname);
+                    strcpy(path_buf, &tmp[2]);
+                } else {
+                    strcpy(path_buf, dirname);
+                }
+                if(strcmp(dirname, ".") != 0) {
+                    strcat(path_buf, "/");
+                    strcat(path_buf, curr_ent->d_name);
+                    printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, path_buf);
+                } else {
+                    printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, curr_ent->d_name);
+                }
             }
         }    
 
