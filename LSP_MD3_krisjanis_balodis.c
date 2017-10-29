@@ -37,9 +37,7 @@ void listdir(char const* dirname)
             stat(curr_ent->d_name, &stbuf);
             if (!S_ISLNK(stbuf.st_mode)) {
                 strftime(last_change, 20, "%Y-%m-%d %H:%M", localtime(&stbuf.st_mtime));
-                // char tmp_name[256];
-                // strcpy(tmp_name, curr_ent->d_name);
-                realpath(dirname, path_buf);
+                strcpy(path_buf, dirname);
                 strcat(path_buf, "/");
                 strcat(path_buf, curr_ent->d_name);
                 printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, path_buf);
