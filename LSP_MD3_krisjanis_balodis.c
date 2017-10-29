@@ -7,6 +7,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <time.h>
+#include <limits.h>
+// #include <ctime.h>
 
 int is_dot_or_dot_dot(char const* name)
 {
@@ -19,6 +22,10 @@ void listdir(char const* dirname)
    DIR* dirp = opendir(dirname);
    struct dirent *curr_ent;
 
+   struct stat stbuf;
+   char last_change[20];
+   char path_buf[1024];
+
    if ( dirp == NULL )
    {
       return;
@@ -26,29 +33,38 @@ void listdir(char const* dirname)
 
    while ( (curr_ent = readdir(dirp)) != NULL )
    { 
-      // Print the name.
-      if (curr_ent->d_type == DT_REG)
-        printf("%s\n", curr_ent->d_name);
+        if (curr_ent->d_type == DT_REG) {
+            stat(curr_ent->d_name, &stbuf);
+            if (!S_ISLNK(stbuf.st_mode)) {
+                strftime(last_change, 20, "%Y-%m-%d %H:%M", localtime(&stbuf.st_mtime));
+                // char tmp_name[256];
+                // strcpy(tmp_name, curr_ent->d_name);
+                realpath(dirname, path_buf);
+                strcat(path_buf, "/");
+                strcat(path_buf, curr_ent->d_name);
+                printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, path_buf);
+            }
+        }    
 
-      // Traverse sub-directories excluding . and ..
-      // Ignore . and ..
-      if ( curr_ent->d_type == DT_DIR && ! (is_dot_or_dot_dot(curr_ent->d_name)) )
-      {
-         // Allocate memory for the subdirectory.
-         // 1 additional for the '/' and the second additional for '\0'.
-         subdir = malloc(strlen(dirname) + strlen(curr_ent->d_name) + 2);
+        // Traverse sub-directories excluding . and ..
+        // Ignore . and ..
+        if ( curr_ent->d_type == DT_DIR && ! (is_dot_or_dot_dot(curr_ent->d_name)) )
+        {
+            // Allocate memory for the subdirectory.
+            // 1 additional for the '/' and the second additional for '\0'.
+            subdir = malloc(strlen(dirname) + strlen(curr_ent->d_name) + 2);
 
-         // Flesh out the subdirectory name.
-         strcpy(subdir, dirname);
-         strcat(subdir, "/");
-         strcat(subdir, curr_ent->d_name);
+            // Flesh out the subdirectory name.
+            strcpy(subdir, dirname);
+            strcat(subdir, "/");
+            strcat(subdir, curr_ent->d_name);
 
-         // List the contents of the subdirectory.
-         listdir(subdir);
+            // List the contents of the subdirectory.
+            listdir(subdir);
 
-         // Free the allocated memory.
-         free(subdir);
-      }
+            // Free the allocated memory.
+            free(subdir);
+        }
    }
 
    // Close the directory
