@@ -11,17 +11,6 @@
 #include <limits.h>
 // #include <ctime.h>
 
-char *newStr (char *charBuffer) {
-    char *str;
-    if (strlen(charBuffer) == 0)
-        str = charBuffer;
-    else if (strlen(charBuffer) == 1)
-        str = charBuffer;
-    else
-        str = charBuffer + 2;
-    return str;
-  }
-
 int is_dot_or_dot_dot(char const* name)
 {
    return (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 );
@@ -35,7 +24,7 @@ void listdir(char const* dirname)
 
    struct stat stbuf;
    char last_change[20];
-   char path_buf[1024];
+   char path_buf[1024];  
 
    if ( dirp == NULL )
    {
@@ -48,8 +37,10 @@ void listdir(char const* dirname)
             stat(curr_ent->d_name, &stbuf);
             if (!S_ISLNK(stbuf.st_mode)) {
                 strftime(last_change, 20, "%Y-%m-%d %H:%M", localtime(&stbuf.st_mtime));
-                strcpy(path_buf, dirname);
-                path_buf = newStr(path_buf);
+                if (len(dirname) > 2)
+                    strcpy(path_buf, &(dirname[2]));
+                else
+                    strcpy(paht_buf, dirname)
                 strcat(path_buf, "/");
                 strcat(path_buf, curr_ent->d_name);
                 printf("=== %s %lu %s\n%s\n\n", last_change, stbuf.st_size, curr_ent->d_name, path_buf);
