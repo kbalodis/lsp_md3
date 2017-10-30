@@ -24,7 +24,7 @@ typedef struct {
 } file_data;
 
 typedef struct {
-  char *dir[10000];
+  char *dir[100000];
   int num;
 } dirs;
 
@@ -192,24 +192,25 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
 
    while ( (curr_ent = readdir(dirp)) != NULL )
    { 
-        if (curr_ent->d_type == DT_DIR) {
-            directories->dir[directories->num] = curr_ent->d_name;
-            directories->num++;
-        }
+        // stat(curr_ent->d_name, &stbuf);
+        // if (curr_ent->d_type == DT_DIR) {// && ! curr_ent->d_type == DT_LNK) {
+        //     if (!S_ISLNK(stbuf.st_mode)) {
+        //         int found_dir = 0;
+        //         for(int i = 0; i <= directories->num; i++) {
+        //           if (strcmp(curr_ent->d_name, directories->dir[i]) == 0) {
+        //             found_dir = 1;
+        //             break;
+        //           }
+        //         }
+        //         if (!found_dir) {
+        //           directories->dir[directories->num] = curr_ent->d_name;
+        //           directories->num++;
+        //         }
+        //     }
+        // }
         if (curr_ent->d_type == DT_REG) {
             stat(curr_ent->d_name, &stbuf);
             if (!S_ISLNK(stbuf.st_mode)) {
-                int found = 0;
-                for(int i = 0; i <= files->num; i++) {
-                  if (strcmp(curr_ent->d_name, files->file[i]) == 0) {
-                    found = 1;
-                    break;
-                  }
-                }
-                if (!found) {
-                  files->file[files->num] = curr_ent->d_name;
-                  files->num++;
-                }
                 file_data *fd = (file_data*)malloc(sizeof(file_data));
                 strftime(last_change, 20, "%Y-%m-%d %H:%M", localtime(&stbuf.st_mtime));
                 if (strlen(dirname) > 2) {
@@ -232,9 +233,39 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
                     fd->size = stbuf.st_size;
                     strcpy(fd->name, curr_ent->d_name);
                     strcpy(fd->path, curr_ent->d_name);
+                    strcpy(path_buf, curr_ent->d_name);
                     fd->checked = 0;
                 }
                 hash_install(ht, fd->path, fd);
+                int found = 0;
+                for(int i = 0; i <= files->num; i++) {
+                  if (strcmp(fd->name, files->file[i]) == 0) {
+                    found = 1;
+                    break;
+                  }
+                }
+                if (!found) {
+                  files->file[files->num] = fd->name;
+                  files->num++;
+                }
+                int found_dir = 0;
+                if (strlen(dirname) > 2) {
+                  strcpy(tmp, dirname);
+                  strcpy(path_buf, &tmp[2]);
+                } else {
+                  strcpy(path_buf, dirname);
+                }
+                for(int i = 0; i <= directories->num; i++) {
+                  printf(directories->dir[i]);
+                  if (strcmp(path_buf, directories->dir[i]) == 0) {
+                    found_dir = 1;
+                    break;
+                  }
+                }
+                if (!found_dir) {
+                  directories->dir[directories->num] = path_buf;
+                  directories->num++;
+                }
                 // free(fd);
             }
         }    
@@ -264,127 +295,12 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
    closedir(dirp);
 }
 
-// void
-// print_name_size(hashtable ht2, const char * path)
-// {
-//   unsigned long hashval;
-//   int i;
-//   hash_table_int *ht;
-//   char tmp_name[256];
-//   int tmp_size;
-//   char tmp_last_change[20];
-//   int found = 0;
-
-//   ht = (hash_table_int *)ht2;
-
-//   hashval = (ht->mask) & hash(ht, path);
-
-//   if (ht->table[hashval].udata == NULL)
-//     return;
-//   else {
-//     if (ht->table[hashval].udata->checked == 1)
-//       return;
-//   }
-
-//   for (i=0; i<ht->num_entries; i++) {
-//     if (ht->table[hashval].udata == NULL) {
-//         return;
-//     }
-//     if (strcmp(ht->table[hashval].key, path) == 0) {
-//       strcpy(tmp_name, ht->table[hashval].udata->name);
-//       tmp_size = ht->table[hashval].udata->size;
-//       strcpy(tmp_last_change, ht->table[hashval].udata->last_change);      
-//       ht->table[hashval].udata->checked = 1;
-//     }
-//     for (i=0; i<ht->num_entries; i++) {
-//     if (strcmp(ht->table[hashval].udata->name, tmp_name) == 0) {
-//       if (found == 0) {
-//         printf("=== %s %d %s\n", tmp_last_change, tmp_size, tmp_name);
-//         printf("%s\n", path);
-//         found = 1;
-//       } else {
-//         printf("%s\n", ht->table[hashval].udata->path);
-//         ht->table[hashval].udata->checked = 1;
-//       }
-//     }
-//     hashval = (hashval+1)&(ht->mask);
-//   }
-//   if (found)
-//     printf("\n");
-//   return;
-// } 
-
-// void print(char const* dirname, hashtable *ht)
-// {
-//    char* subdir;
-//    DIR* dirp = opendir(dirname);
-//    struct dirent *curr_ent;
-
-//    struct stat stbuf;
-//    char tmp[1024];
-//    char path_buf[1024];
-
-//    if ( dirp == NULL )
-//    {
-//       return;
-//    }
-
-//    while ( (curr_ent = readdir(dirp)) != NULL )
-//    { 
-//         if (curr_ent->d_type == DT_REG) {
-//             stat(curr_ent->d_name, &stbuf);
-//             if (!S_ISLNK(stbuf.st_mode)) {
-//                 // file_data *fd = (file_data*)malloc(sizeof(file_data));
-//                 if (strlen(dirname) > 2) {
-//                     strcpy(tmp, dirname);
-//                     strcpy(path_buf, &tmp[2]);
-//                 } else {
-//                     strcpy(path_buf, dirname);
-//                 }
-//                 if(strcmp(dirname, ".") != 0) {
-//                     strcat(path_buf, "/");
-//                     strcat(path_buf, curr_ent->d_name);
-//                 } else {
-//                     strcpy(path_buf, curr_ent->d_name);
-//                 }
-//                 // fd = hash_lookup(ht, path_buf);
-//                 // printf("%s %s\n", path_buf, fd->name);
-//                 // print_name_size(ht, path_buf);
-//                 // free(fd);
-//                 print_name_size(ht, path_buf);
-//             }
-//         }    
-
-//         // Traverse sub-directories excluding . and ..
-//         // Ignore . and ..
-//         if ( curr_ent->d_type == DT_DIR && ! (is_dot_or_dot_dot(curr_ent->d_name)) )
-//         {
-//             // Allocate memory for the subdirectory.
-//             // 1 additional for the '/' and the second additional for '\0'.
-//             subdir = malloc(strlen(dirname) + strlen(curr_ent->d_name) + 2);
-
-//             // Flesh out the subdirectory name.
-//             strcpy(subdir, dirname);
-//             strcat(subdir, "/");
-//             strcat(subdir, curr_ent->d_name);
-//             // List the contents of the subdirectory.
-//             print(subdir, ht);
-
-//             // Free the allocated memory.
-//             free(subdir);
-//         }
-//    }
-
-//    // Close the directory
-//    closedir(dirp);
-// }
-
-int main(int argc, int *argv[]) {
+int main(int argc, char *argv[]) {
     hashtable *ht = hash_init(8);
 
     dirs *directories = (dirs *)malloc(sizeof(dirs));
     directories->num = 0;
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 100000; i++) {
       directories->dir[i] = (char *) malloc (sizeof(char) * 1024);
       directories->dir[i] = "\n";
     }
@@ -399,11 +315,26 @@ int main(int argc, int *argv[]) {
     listdir(".", ht, directories, file);
     // hash_table_int *tmp = (hash_table_int*)ht;
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i <= file->num; i++) {
       if (strcmp(file->file[i], "\n") == 0) {
         break;
       } else {
-        printf("%s\n", file->file[i]);
+        file_data *fd = (file_data*)malloc(sizeof(file_data));
+        file_data *tmp = (file_data*)malloc(sizeof(file_data));
+        for (int j = 0; j <= directories->num; j++) {
+          char tmp[1024];
+          strcpy(tmp, directories->dir[i]);
+          if (strcmp(tmp, "") == 0)
+            fd = hash_lookup(ht, file->file[i]);
+          else {
+            strcat(tmp, "/");
+            strcat(tmp, file->file[i]);
+            printf("tmp %s\n", tmp);
+            fd = hash_lookup(ht, tmp);
+          }
+          if (fd)
+            printf("%s\n", fd->name);
+        }
       }
     }
     // printf("+++++%lu", tmp->num_entries);
