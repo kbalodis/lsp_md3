@@ -24,14 +24,14 @@ typedef struct {
 } file_data;
 
 typedef struct {
-  char *dir[100000];
-  int num;
-} dirs;
+  char *item[1024];
+  int checked;
+} item;
 
 typedef struct {
-  char *file[100000];
+  item *path[100000];
   int num;
-} files;
+} paths;
 
 typedef struct {
     char *key;
@@ -43,7 +43,6 @@ typedef struct {
     unsigned long num_entries, prevval;
     hash_bucket *table;
 } hash_table_int;
-
 
 hashtable
 hash_init(int bits)
@@ -140,8 +139,9 @@ hash_lookup(hashtable ht2, const char *s)
   for (i=0; i<ht->num_entries; i++) {
     if (ht->table[hashval].udata == NULL)
       return(NULL);
-    if (strcmp(ht->table[hashval].key, s) == 0)
-      return(ht->table[hashval].udata);
+    if (strcmp(ht->table[hashval].key, s) == 0) {
+        return(ht->table[hashval].udata);
+    }
     hashval = (hashval+1)&(ht->mask);
   }
   return(NULL);
@@ -174,7 +174,7 @@ int is_dot_or_dot_dot(char const* name)
    return (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 );
 }
 
-void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files)
+void listdir(char const* dirname, hashtable *ht, paths *paths)
 {
    char* subdir;
    DIR* dirp = opendir(dirname);
@@ -192,22 +192,6 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
 
    while ( (curr_ent = readdir(dirp)) != NULL )
    { 
-        // stat(curr_ent->d_name, &stbuf);
-        // if (curr_ent->d_type == DT_DIR) {// && ! curr_ent->d_type == DT_LNK) {
-        //     if (!S_ISLNK(stbuf.st_mode)) {
-        //         int found_dir = 0;
-        //         for(int i = 0; i <= directories->num; i++) {
-        //           if (strcmp(curr_ent->d_name, directories->dir[i]) == 0) {
-        //             found_dir = 1;
-        //             break;
-        //           }
-        //         }
-        //         if (!found_dir) {
-        //           directories->dir[directories->num] = curr_ent->d_name;
-        //           directories->num++;
-        //         }
-        //     }
-        // }
         if (curr_ent->d_type == DT_REG) {
             stat(curr_ent->d_name, &stbuf);
             if (!S_ISLNK(stbuf.st_mode)) {
@@ -237,36 +221,9 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
                     fd->checked = 0;
                 }
                 hash_install(ht, fd->path, fd);
-                int found = 0;
-                for(int i = 0; i <= files->num; i++) {
-                  if (strcmp(fd->name, files->file[i]) == 0) {
-                    found = 1;
-                    break;
-                  }
-                }
-                if (!found) {
-                  files->file[files->num] = fd->name;
-                  files->num++;
-                }
-                int found_dir = 0;
-                if (strlen(dirname) > 2) {
-                  strcpy(tmp, dirname);
-                  strcpy(path_buf, &tmp[2]);
-                } else {
-                  strcpy(path_buf, dirname);
-                }
-                for(int i = 0; i <= directories->num; i++) {
-                  printf(directories->dir[i]);
-                  if (strcmp(path_buf, directories->dir[i]) == 0) {
-                    found_dir = 1;
-                    break;
-                  }
-                }
-                if (!found_dir) {
-                  directories->dir[directories->num] = path_buf;
-                  directories->num++;
-                }
-                // free(fd);
+                strcpy(paths->path[paths->num]->item, fd->path);
+                paths->num++;
+
             }
         }    
 
@@ -284,7 +241,7 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
             strcat(subdir, curr_ent->d_name);
 
             // List the contents of the subdirectory.
-            listdir(subdir, ht, directories, files);
+            listdir(subdir, ht, paths);
 
             // Free the allocated memory.
             free(subdir);
@@ -298,47 +255,54 @@ void listdir(char const* dirname, hashtable *ht, dirs *directories, files *files
 int main(int argc, char *argv[]) {
     hashtable *ht = hash_init(8);
 
-    dirs *directories = (dirs *)malloc(sizeof(dirs));
-    directories->num = 0;
+    paths *path = (paths *)malloc(sizeof(paths));
+    path->num = 0;
     for (int i = 0; i < 100000; i++) {
-      directories->dir[i] = (char *) malloc (sizeof(char) * 1024);
-      directories->dir[i] = "\n";
+      path->path[i] = (item *) malloc (sizeof(item));
+      // path->path[i]->item = (char *) malloc (sizeof(char) * 1024);
+      strcpy(path->path[i]->item, "\n");
+      path->path[i]->checked = 0;
     }
 
-    files *file = (files *)malloc(sizeof(files));
-    file->num = 0;
-    for (int i = 0; i < 100000; i++) {
-      file->file[i] = (char *) malloc(sizeof(char) * 256);
-      file->file[i] = "\n";
-    }
-
-    listdir(".", ht, directories, file);
+    listdir(".", ht, path);
     // hash_table_int *tmp = (hash_table_int*)ht;
 
-    for (int i = 0; i <= file->num; i++) {
-      if (strcmp(file->file[i], "\n") == 0) {
+    file_data *fd = (file_data*)malloc(sizeof(file_data));
+    file_data *tmp = (file_data*)malloc(sizeof(file_data));
+    int found = 0;
+    for (int i = 0; i <= path->num; i++) {
+      if (strcmp(path->path[i]->item, "\n") == 0) {
         break;
       } else {
-        file_data *fd = (file_data*)malloc(sizeof(file_data));
-        file_data *tmp = (file_data*)malloc(sizeof(file_data));
-        for (int j = 0; j <= directories->num; j++) {
-          char tmp[1024];
-          strcpy(tmp, directories->dir[i]);
-          if (strcmp(tmp, "") == 0)
-            fd = hash_lookup(ht, file->file[i]);
-          else {
-            strcat(tmp, "/");
-            strcat(tmp, file->file[i]);
-            printf("tmp %s\n", tmp);
-            fd = hash_lookup(ht, tmp);
+        fd = hash_lookup(ht, path->path[i]->item);
+        if (fd && !path->path[i]->checked) {
+          path->path[i]->checked = 1;
+          found = 0;
+          for (int j = i+1; j <= path->num; j++) {
+            tmp = hash_lookup(ht, path->path[j]->item);
+            if (tmp) {
+              if(strcmp(fd->name, tmp->name) == 0) {
+                if (fd->size == tmp->size) {
+                  if (!found) {
+                    printf("=== %s %lu %s\n%s\n", fd->last_change, fd->size, fd->name, fd->path);
+                    printf("%s\n", tmp->path);
+                    path->path[j]->checked = 1;
+                    found = 1;
+                  } else {
+                    printf("%s\n", tmp->path);
+                    path->path[j]->checked = 1;
+                  }
+                }
+              }
+            }
           }
-          if (fd)
-            printf("%s\n", fd->name);
+          if(found) {
+            printf("\n");
+            found = 0;
+          }
         }
       }
     }
-    // printf("+++++%lu", tmp->num_entries);
-    // print(".", ht);
 
     return 0;
 }
